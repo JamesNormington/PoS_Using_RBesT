@@ -211,7 +211,7 @@ ui = navbarPage("",
                            ) # close mainPanel
                          ) # close sidebarlayout 
                          ), # close tabPanel 
-                tabPanel("Help", uiOutput("link"), br(), uiOutput("link2"), br(), uiOutput("link3"))
+                tabPanel("Help", uiOutput("link0"), br(), uiOutput("link"), br(), uiOutput("link2"), br(), uiOutput("link3"))
                 ) # close NavBarPanel
 
 server = function(input, output, session) {
@@ -645,7 +645,12 @@ server = function(input, output, session) {
   })
   }, ignoreInit = TRUE)
   
-  URL = a("Click here for a walkthrough of the methodology and code.", href = "http://shinyserver.statwb.eu.novartis.net/normija1/Probability_of_Success_Using_RBesT__Methodology_and_Code_Walkthrough.pdf")
+  URL0 = a("Click here for a walkthrough of this Shiny app.", href = "https://github.com/JamesNormington/PoS_Using_RBesT/blob/master/PoS%20Shiny%20App%20Walkthrough%2C%20v1.pdf")
+  output$link0 = renderUI({
+    tagList(URL0)
+  }) 
+  
+  URL = a("Click here for a walkthrough of the methodology and code.", href = "https://github.com/JamesNormington/PoS_Using_RBesT/blob/master/PoS%20Methodology%20and%20Code%20Walkthrough%2C%20v1.pdf")
   output$link = renderUI({
     tagList(URL)
   }) 
