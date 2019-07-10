@@ -1,7 +1,7 @@
 library(RBesT); library(shinyjs)
 library(data.table); library(DT); library(shiny)
 ## some gMAP calls below require this option
-options(RBesT.MC.control=list(adapt_delta=0.9999))
+options(RBesT.MC.control=list(adapt_delta=0.99999))
 
 ui = navbarPage("", 
                 tabPanel("Historical trial meta-data",
@@ -524,7 +524,35 @@ server = function(input, output, session) {
         incProgress(amount = 0.5)
         setProgress(message = "Computing parametric approximation...")
       
-        base.MAP = automixfit(base.MAP.mc)
+        auto.worked = 1
+        mix.worked = rep(1, 4)
+        base.MAP = tryCatch({
+          automixfit(base.MAP.mc) 
+        }, error = function(e) return(0)
+        )  
+        
+        if(identical(base.MAP, 0)) {
+          mixfit1 = tryCatch({
+            mixfit(base.MAP.mc, Nc = 1)
+          }, error = function(e1) return(0))
+          mixfit2 = tryCatch({
+            mixfit(base.MAP.mc, Nc = 2)
+          }, error = function(e2) return(0))
+          mixfit3 = tryCatch({
+            mixfit(base.MAP.mc, Nc = 3)
+          }, error = function(e3) return(0))
+          mixfit4 = tryCatch({
+            mixfit(base.MAP.mc, Nc = 4)
+          }, error = function(e4) return(0))
+          mixfits = list(mixfit1, mixfit2, mixfit3, mixfit4)
+          AICs = rep(.Machine$double.xmax, 4)
+          for(i in 1:4) {
+            if(!identical(mixfits[[i]], 0)) {
+              AICs[i] = AIC(mixfits[[i]], k = 6)
+            } 
+          }
+          base.MAP = mixfits[[which(AICs == min(AICs))]]
+        }
 
         incProgress(amount = 0.3)
         setProgress(message = "Robustifying prior...")
