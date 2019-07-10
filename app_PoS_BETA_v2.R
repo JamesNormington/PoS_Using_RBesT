@@ -645,12 +645,12 @@ server = function(input, output, session) {
   })
   }, ignoreInit = TRUE)
   
-  URL0 = a("Click here for a walkthrough of this Shiny app.", href = "https://github.com/JamesNormington/PoS_Using_RBesT/blob/master/PoS%20Shiny%20App%20Walkthrough%2C%20v1.pdf")
+  URL0 = a("Click here for a walkthrough of this Shiny app (Chrome or Firefox only).", href = "https://github.com/JamesNormington/PoS_Using_RBesT/blob/master/PoS%20Shiny%20App%20Walkthrough%2C%20v1.pdf")
   output$link0 = renderUI({
     tagList(URL0)
   }) 
   
-  URL = a("Click here for a walkthrough of the methodology and code.", href = "https://github.com/JamesNormington/PoS_Using_RBesT/blob/master/PoS%20Methodology%20and%20Code%20Walkthrough%2C%20v1.pdf")
+  URL = a("Click here for a walkthrough of the methodology and code (Chrome or Firefox only).", href = "https://github.com/JamesNormington/PoS_Using_RBesT/blob/master/PoS%20Methodology%20and%20Code%20Walkthrough%2C%20v1.pdf")
   output$link = renderUI({
     tagList(URL)
   }) 
