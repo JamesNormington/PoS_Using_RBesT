@@ -18,12 +18,12 @@ ui = navbarPage("",
                                                            textInput("study_add", "Name of added study", value = "New Study"),
                                                            numericInput("n_add", "Sample size of added study", value = 0, step = 1),
                                                            conditionalPanel("input.endpt == 'Binary'",
-                                                           numericInput("r_add", "Number of events in added study", value = 0, step = 1)),
-                                                           
-                                                           conditionalPanel("input.endpt != 'Binary'",
-                                                                            numericInput("m_add", "Sample mean in added study", value = 0),
-                                                                            conditionalPanel("input.endpt == 'Poisson'",
-                                                                                             numericInput("t_add", "Trial duration of added study", value = 10))),
+                                                                            numericInput("r_add", "Number of events in added study", value = 0, step = 1)),
+                                                           conditionalPanel("input.endpt == 'Normal'", 
+                                                                            numericInput("m_add", "Sample mean in added study", value = 0)),
+                                                           conditionalPanel("input.endpt == 'Poisson'",
+                                                                            numericInput("m_add_pois", "Total count in added study", value = 1000),
+                                                                            numericInput("t_add", "Trial duration of added study", value = 10)),
                                                            actionButton("add_btn", "Add study")),
                                           checkboxInput("delete_study", "Delete study from table?"),
                                           conditionalPanel("input.delete_study",
@@ -64,13 +64,13 @@ ui = navbarPage("",
                                  )),
                 conditionalPanel(condition = "input.endpt == 'Poisson'",
                                  numericInput("n.new.pois", "Sample size of treatment group at interim", value = 100, min = 1, step = 1),
-                                 numericInput("m.new.pois", "Sample mean within treatment group at interim", value = 20, min = 0, step = 1),
+                                 numericInput("y.new.pois", "Total count within treatment group at interim", value = 20, min = 0, step = 1),
                                  numericInput("n.trt.target", "Total target sample size within treatment group", value = 150, min = 1, step = 1), 
                                  selectInput("samp_pois", "One or two sample trial?", choices = c("One", "Two")),
                       
                                  conditionalPanel(condition = "input.samp_pois == 'Two'", 
                                                   numericInput("n.ctrl.pois", "Sample size of control group at interim", value = 0, min = 1, step = 1),
-                                                  numericInput("m.ctrl.pois", "Sample mean within control group at interim", value = 20, min = 0, step = 1),
+                                                  numericInput("y.ctrl.pois", "Total count within control group at interim", value = 20, min = 0, step = 1),
                                                   numericInput("n.ctrl.target", "Total target sample size within control group", value = 150, min = 1, step = 1)
                                  ))),
         
@@ -116,7 +116,7 @@ ui = navbarPage("",
                                         conditionalPanel("input.beta_choice == 'Default'", 
                                                          conditionalPanel("input.endpt == 'Binary'", HTML("<p> Default prior is &beta; ~ N(0, 2) </p>")),
                                                          conditionalPanel("input.endpt == 'Normal'", HTML("<p> Default prior is &beta; ~ N(0, 100 * sd(y))) </p>")),
-                                                         conditionalPanel("input.endpt == 'Poisson'", HTML("<p> Default prior is &beta; ~ N(0, 100 * sd(log(y + 0.5))) " ))),
+                                                         conditionalPanel("input.endpt == 'Poisson'", HTML("<p> Default prior is &beta; ~ N(0, sd(log(y + 0.5 + log(t*n))))" ))),
                                         numericInput("wt", "Weight for robust prior", value = 0.2, min = 0, max = 1)
                                         )),
 
@@ -220,8 +220,8 @@ server = function(input, output, session) {
   names(this_table_bin) = c("Study", "n", "# of events")
   this_table_norm = data.frame(study = c("Study 1", "Study 2", "Study 3"), n = rep(100, 3), m = c(-10, -20, -30), stringsAsFactors = FALSE)
   names(this_table_norm) = c("Study", "n", "Sample mean")
-  this_table_pois = data.frame(study = c("Study 1", "Study 2", "Study 3"), n = rep(100, 3), m = c(10, 20, 30), t = rep(100, 3), stringsAsFactors = FALSE)
-  names(this_table_pois) = c("Study", "n", "Sample mean", "Trial duration")
+  this_table_pois = data.frame(study = c("Study 1", "Study 2", "Study 3"), n = rep(100, 3), y = c(1113, 980, 1020), t = rep(12, 3), stringsAsFactors = FALSE)
+  names(this_table_pois) = c("Study", "n", "Total count", "Trial duration")
   
   val = reactiveValues(mat = this_table_bin)
   val2 = reactiveValues(mat = this_table_norm)
@@ -241,11 +241,11 @@ server = function(input, output, session) {
     if(input$endpt == "Binary") {
       t = as.data.frame(rbind(which_val()$mat, c(input$study_add, input$n_add, input$r_add)))
       val$mat <<- t    
-    } else if(input$endpt == "Normal") {
+    } else if(input$endpt ==   "Normal") {
       t = as.data.frame(rbind(which_val()$mat, c(input$study_add, input$n_add, input$m_add)))
       val2$mat <<- t
     } else{
-      t = as.data.frame(rbind(which_val()$mat, c(input$study_add, input$n_add, input$m_add, input$t_add)))
+      t = as.data.frame(rbind(which_val()$mat, c(input$study_add, input$n_add, input$m_add_pois, input$t_add)))
       val3$mat <<- t
     }
   })
@@ -304,10 +304,52 @@ server = function(input, output, session) {
   
   # Error checking for MAP prior
   errCheck_MAP = function() {
-
+    output$warning.wt = output$warning.alpha = renderText({""})
+    
+    co.data = which_val()$mat
+    
+    co.data[,2] = as.numeric(co.data[,2])
+    co.data[,3] = as.numeric(co.data[,3])
+    if(input$endpt == "Poisson") co.data[,4] = as.numeric(co.data[,4])
+    
+    # Error check historical data
+    if(sum(co.data[,1] == "") > 0 | sum(is.na(co.data[,c(2,3)])) > 0) return("Please complete the table of historical trial meta-data.")
+    if(sum(co.data[,2] == "") > 0) return("Please complete the table of historical trial meta-data.")
+    if(sum(co.data[,3] == "") > 0) return("Please complete the table of historical trial meta-data.")
+    if(input$endpt == "Poisson") {
+      if(sum(is.na(co.data[,4])) > 0) return("Please complete the table of historical trial meta-data.")
+    }
+    
+    if(length(unique(co.data[,1])) != nrow(co.data)) {
+      output$unique_warn = renderText({"Each row should uniquely define one study!"})
+    } else{
+      output$unique_warn = renderText({""})
+    }
+    
+    if(sum(co.data[,2] <= 0) > 0) return("Your 2nd column should contain control arm sample sizes, which are positive integers.")  
+    if(sum(co.data[,2]%%1 != 0) > 0) return("Your 2nd column should contain control arm sample sizes, which are positive integers.")  
+    
+    if(sum(!is.numeric(co.data[,2])) > 0) return("Your 2nd column should contain numbers!")
+    if(sum(co.data[,3] < 0) > 0 & input$endpt == "Binary") return("Your 3rd column should contain # of events in control group, which are non-negative integers.")  
+    if(input$endpt == "Binary" & sum(co.data[,3]%%1 != 0) > 0) return("Your 3rd column should contain control arm sample sizes, which are positive integers.")  
+    
+    if(sum(!is.numeric(co.data[,3])) > 0) return("Your 3rd column should contain numbers!")
+    if(input$endpt == "Binary" & (sum(co.data[,2] < co.data[,3]) > 0)) return("Your number of events (r) cannot exceed your sample size (n)!")
+    if(input$endpt == "Poisson") {
+      if(sum(!is.numeric(co.data[,4])) > 0) return("Your 4th column should contain numbers!")
+      if(((sum(co.data[,3] < 0) > 0) | (sum(co.data[,4] <= 0) > 0))) return("Your total counts (y) must be non-negative and your trial durations (t) must be positive!")
+    }
+    
+    if(sum(co.data[,2] >= 100000) > 0) {
+      output$samp_size_warn = renderText({"MAP prior is slower to compute for large sample sizes..."})
+    } else{
+      output$samp_size_warn = renderText({""})
+    }
+    
     if(input$endpt == "Normal" & (!is.numeric(input$sigma) | input$sigma < 0)) {return("Reference Scale must be a number greater than 0!")}
     if(input$endpt == "Normal" & input$sigma > 1000000) {return("Are you sure the Reference Scale is that high? Think about rescaling the data.")}
     if(!is.numeric(input$seed) | !input$seed%%1 == 0| input$seed < 1){return("Seed must be a positive integer!")}
+    
     
   
     if(!is.numeric(input$wt) | input$wt < 0 | input$wt > 1){return("Weight for non-informative prior must be between 0 and 1!")}
@@ -332,12 +374,11 @@ server = function(input, output, session) {
   
   # Error checking for PoS function
   errCheck_PoS = function(use.hist) {
-    output$warning.wt = output$warning.alpha = renderText({""})
     
     if(!is.numeric(input$n.new) | !input$n.new%%1 == 0 | input$n.new < 1){return("Sample size of treatment group must be a positive integer!")}
     if(input$endpt == "Binary" & (!is.numeric(input$r.new) |  !input$r.new%%1 == 0 | input$r.new < 0 | input$r.new > input$n.new)){return("Number of events within treatment group must be a non-negative integer smaller than the sample size!")}
     if(input$endpt == "Normal" & !is.numeric(input$m.new)) {return("Sample mean within treatment group must be a number!")}
-    if(input$endpt == "Poisson" & (!is.numeric(input$m.new.pois) | input$m.new.pois < 0)){return("Sample mean within treatment group must be a non-negative number!")}
+    if(input$endpt == "Poisson" & (!is.numeric(input$y.new.pois) | input$y.new.pois < 0)){return("Total count within treatment group must be a non-negative number!")}
     if(!is.numeric(input$n.trt.target) | input$n.trt.target%%1 != 0 | input$n.trt.target <= 0 | input$n.trt.target <= input$n.new){return("Total sample size must be a positive integer greater than the interim sample size!")}
     
     if(input$samp_bin != "One") {
@@ -349,7 +390,7 @@ server = function(input, output, session) {
       } else if(input$endpt == "Normal") {
         if(!is.numeric(input$m.ctrl)){return("Sample mean within control group must be a number!")}
       } else{
-        if(!is.numeric(input$m.ctrl.pois) | input$m.ctrl.pois < 0) {return("Sample mean within treatment group must be a non-negative number!")}
+        if(!is.numeric(input$y.ctrl.pois) | input$y.ctrl.pois < 0) {return("Total count within treatment group must be a non-negative number!")}
       }
     }
     if(input$endpt == "Normal" & (!is.numeric(input$sigma) | input$sigma < 0)) {return("Reference Scale must be a number greater than 0!")}
@@ -420,7 +461,7 @@ server = function(input, output, session) {
     if(input$endpt == "Binary" & (sum(co.data[,2] < co.data[,3]) > 0)) return("Your number of events (r) cannot exceed your sample size (n)!")
     if(input$endpt == "Poisson") {
       if(sum(!is.numeric(co.data[,4])) > 0) return("Your 4th column should contain numbers!")
-      if(((sum(co.data[,3] < 0) > 0) | (sum(co.data[,4] <= 0) > 0))) return("Your sample means (m) must be non-negative and your trial durations (t) must be positive!")
+      if(((sum(co.data[,3] < 0) > 0) | (sum(co.data[,4] <= 0) > 0))) return("Your total counts (y) must be non-negative and your trial durations (t) must be positive!")
     }
     
     if(sum(co.data[,2] >= 100000) > 0) {
@@ -435,8 +476,7 @@ server = function(input, output, session) {
       } else if(input$endpt == "Normal") {
         beta.prior = 100*input$sigma
       } else{
-        names(co.data) = c("study", "n", "m", "t")
-        beta.prior = 100*sd(log(co.data$m + 0.5))
+        beta.prior =  sd(log(co.data[,3] + 0.5 + log(co.data[,2]*co.data[,4])))
       }
     } else{
       beta.prior = cbind(input$beta_mu, input$beta_sigma)
@@ -465,10 +505,9 @@ server = function(input, output, session) {
                          weights = n, beta.prior = beta.prior,
                          tau.dist = input$tau_dist, tau.prior = tau.prior)
     } else {
-      names(co.data) = c("study", "n", "m", "t")
-      base.MAP.mc = gMAP(m ~ 1| study, family = poisson, 
-                         data = co.data, 
-                         weights = n, beta.prior = beta.prior,
+      names(co.data) = c("study", "n", "y", "t")
+      base.MAP.mc = gMAP(y ~ 1 + offset(log(t*n)) | study, family = poisson, 
+                         data = co.data, beta.prior = beta.prior,
                          tau.dist = input$tau_dist, tau.prior = tau.prior)
     }
       return(base.MAP.mc)
@@ -524,35 +563,7 @@ server = function(input, output, session) {
         incProgress(amount = 0.5)
         setProgress(message = "Computing parametric approximation...")
       
-        auto.worked = 1
-        mix.worked = rep(1, 4)
-        base.MAP = tryCatch({
-          automixfit(base.MAP.mc) 
-        }, error = function(e) return(0)
-        )  
-        
-        if(identical(base.MAP, 0)) {
-          mixfit1 = tryCatch({
-            mixfit(base.MAP.mc, Nc = 1)
-          }, error = function(e1) return(0))
-          mixfit2 = tryCatch({
-            mixfit(base.MAP.mc, Nc = 2)
-          }, error = function(e2) return(0))
-          mixfit3 = tryCatch({
-            mixfit(base.MAP.mc, Nc = 3)
-          }, error = function(e3) return(0))
-          mixfit4 = tryCatch({
-            mixfit(base.MAP.mc, Nc = 4)
-          }, error = function(e4) return(0))
-          mixfits = list(mixfit1, mixfit2, mixfit3, mixfit4)
-          AICs = rep(.Machine$double.xmax, 4)
-          for(i in 1:4) {
-            if(!identical(mixfits[[i]], 0)) {
-              AICs[i] = AIC(mixfits[[i]], k = 6)
-            } 
-          }
-          base.MAP = mixfits[[which(AICs == min(AICs))]]
-        }
+        base.MAP = automixfit(base.MAP.mc) 
 
         incProgress(amount = 0.3)
         setProgress(message = "Robustifying prior...")
@@ -635,21 +646,21 @@ server = function(input, output, session) {
         
         if(input$samp_pois == "One") {
           decision = decision1S(pc, qc = input$lambda0, lower.tail)
-          interim = postmix(treat.prior, n = input$n.new.pois, m = input$m.new.pois)
+          interim = postmix(treat.prior, n = input$n.new.pois, m = input$y.new.pois/input$n.new.pois)
           interim.PoS = pos1S(interim, input$n.trt.target - input$n.new, decision)
           if(input$use_hist) {
-            interim.combined = postmix(MAP.robust, m = input$m.new.pois, n = input$n.new.pois)
+            interim.combined = postmix(MAP.robust, m = input$y.new.pois/input$n.new.pois, n = input$n.new.pois)
           } else{
             interim.combined = interim
           }
           PoS = round(interim.PoS(interim.combined), 3)
         } else {
           decision = decision2S(pc, qc = input$diff0.pois, link = input$link)
-          interim.trt = postmix(treat.prior, n = input$n.new.pois, m = input$m.new.pois)
+          interim.trt = postmix(treat.prior, n = input$n.new.pois, m = input$y.new.pois/input$n.new.pois)
           if(input$use_hist) {
-            interim.ctrl = postmix(MAP.robust, n = input$n.ctrl.pois, m = input$m.ctrl.pois)
+            interim.ctrl = postmix(MAP.robust, n = input$n.ctrl.pois, m = input$y.ctrl.pois/input$n.ctrl.pois)
           } else{
-            interim.ctrl = postmix(treat.prior, n = input$n.ctrl.pois, m = input$m.ctrl.pois)
+            interim.ctrl = postmix(treat.prior, n = input$n.ctrl.pois, m = input$y.ctrl.pois/input$n.ctrl.pois)
           }
           interim.PoS = pos2S(interim.ctrl, interim.trt, input$n.ctrl.target - input$n.ctrl,
                               input$n.trt.target - input$n.new, decision = decision)
