@@ -1,6 +1,11 @@
-require(RBesT); require(shinyjs); require(memoise)
-require(data.table); require(DT); require(shiny)
-require(ggplot2)
+list.of.packages <- c("RBesT", "shinyjs", "memoise", "data.table",
+                     "DT", "shiny", "ggplot2")
+new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+if(length(new.packages)) install.packages(new.packages)
+
+library(RBesT); library(shinyjs); library(memoise)
+library(data.table); library(DT); library(shiny)
+library(ggplot2)
 ## some gMAP calls below require this option
 options(RBesT.MC.control=list(adapt_delta=0.999999))
 
