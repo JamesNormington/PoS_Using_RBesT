@@ -1,5 +1,5 @@
 list.of.packages <- c("RBesT", "shinyjs", "memoise", "data.table",
-                     "DT", "shiny", "ggplot2")
+                      "DT", "shiny", "ggplot2")
 new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
 if(length(new.packages)) install.packages(new.packages)
 
@@ -67,64 +67,65 @@ ui = navbarPage("",
                                                                                                        ".csv"))
                                                                           ),
                                                                           checkboxInput("header", "First row of table contains headers", TRUE)
-                                                         ), # close conditionalPanel, Upload
+                                        ), # close conditionalPanel, Upload
+                                        
+                                        conditionalPanel("input.use_hist", hr(), tags$b(HTML("<p> (3) Specify priors on &tau; and &beta;. </p>"))),
+                                        numericInput("seed", "Random seed (positive integer)", value=sample(1:10000, 1), min = 1),
+                                        conditionalPanel("input.use_hist",
+                                                         selectInput("tau_dist", HTML("<p> Specify prior for &tau; (between-trial standard deviation). </p>"), 
+                                                                     choices = c(`HalfNormal` = "HalfNormal", `TruncNormal` = "TruncNormal", 
+                                                                                 `Uniform` = "Uniform", `Gamma` = "Gamma", `InvGamma` = "InvGamma", 
+                                                                                 `LogNormal` = "LogNormal", `TruncCauchy` = "TruncCauchy", 
+                                                                                 `Exponential` = "Exp", `Fixed`  ="Fixed")),
+                                                         conditionalPanel("input.tau_dist == 'HalfNormal'", HTML("<p> &tau; ~ HalfNormal(&sigma;) </p>"), 
+                                                                          numericInput("tau_arg1_HN", HTML("<p> &sigma; </p>"), value = 1, min = .Machine$double.xmin)),
+                                                         conditionalPanel("input.tau_dist == 'TruncNormal'", HTML("<p> &tau; ~ TruncNormal(&mu;, &sigma;) </p>"), 
+                                                                          numericInput("tau_arg1_TN", HTML("<p> &mu; </p>"), value = 0, min = .Machine$double.xmin), 
+                                                                          numericInput("tau_arg2_TN", HTML("<p> &sigma; </p>"), value = 1, min = .Machine$double.xmin)),
+                                                         conditionalPanel("input.tau_dist == 'Uniform'", HTML("<p> &tau; ~ Uniform(a, b) </p>"), 
+                                                                          numericInput("tau_arg1_Uni", HTML("a"), value = 0), 
+                                                                          numericInput("tau_arg2_Uni", HTML("b"), value = 1)),
+                                                         conditionalPanel("input.tau_dist == 'Gamma'", HTML("<p> &tau; ~ Gamma(shape = &alpha;, rate = &beta;) </p>"), 
+                                                                          numericInput("tau_arg1_G", HTML("<p> &alpha; </p>"), value = 0.1), 
+                                                                          numericInput("tau_arg2_G", HTML("<p> &beta; </p>"), value = 0.1)),
+                                                         conditionalPanel("input.tau_dist == 'InvGamma'", HTML("<p> &tau; ~ InverseGamma(shape = &alpha;, scale = &beta;) </p>"), 
+                                                                          numericInput("tau_arg1_IG", HTML("<p> &alpha; </p>"), value = 0.001), 
+                                                                          numericInput("tau_arg2_IG", HTML("<p> &beta; </p>"), value = 0.001)),
+                                                         conditionalPanel("input.tau_dist == 'LogNormal'", HTML("<p> &tau; ~ LogNormal(&mu;, &sigma;) </p>"), 
+                                                                          numericInput("tau_arg1_LN", HTML("<p> &mu; </p>"), value = 0), 
+                                                                          numericInput("tau_arg2_LN", HTML("<p> &sigma; </p>"), value = 1, min = .Machine$double.xmin)),
+                                                         conditionalPanel("input.tau_dist == 'TruncCauchy'", HTML("<p> &tau; ~ TruncCauchy(&mu;, &sigma;) </p>"), 
+                                                                          numericInput("tau_arg1_TC", HTML("<p> &mu; </p>"), value = 0), 
+                                                                          numericInput("tau_arg2_TC", HTML("<p> &sigma; </p>"), value = 1, min = .Machine$double.xmin)),
+                                                         conditionalPanel("input.tau_dist == 'Exp'", HTML("<p> &tau; ~ Exp(rate = &lambda;) </p>"), 
+                                                                          numericInput("tau_arg_exp", HTML("<p> &lambda; </p>"), value = 1)), 
+                                                         conditionalPanel("input.tau_dist == 'Fixed'", HTML("<p> &tau; = &tau;<sub>0</sub> </p>"), 
+                                                                          numericInput("tau_fixed", HTML("<p> &tau;<sub>0</sub> </p>"), value = 1)),
+                                                         selectInput("beta_choice", HTML("<p> Specify prior for &beta; (common mean). </p>"), choices = c("Default", "Specify")),
+                                                         conditionalPanel("input.beta_choice == 'Specify'", HTML("<p> &beta; ~ Normal(&mu;, &sigma;) </p>"),
+                                                                          numericInput("beta_mu", HTML("<p> &mu; </p>"), value = 0), 
+                                                                          numericInput("beta_sigma", HTML("<p> &sigma; </p>"), value = 100, min = .Machine$double.xmin)),
+                                                         conditionalPanel("input.beta_choice == 'Default'", 
+                                                                          conditionalPanel("input.endpt == 'Binary'", HTML("<p> Default prior is &beta; ~ N(0, 2) </p>")),
+                                                                          conditionalPanel("input.endpt == 'Normal'", HTML("<p> Default prior is &beta; ~ N(0, 100 * sd(y))) </p>")),
+                                                                          conditionalPanel("input.endpt == 'Poisson'", HTML("<p> Default prior is &beta; ~ N(0, sd(log(y + 0.5 + log(t*n))))" )))
                                                          
-                                                         conditionalPanel("input.use_hist", hr(), tags$b(HTML("<p> (3) Specify priors on &tau; and &beta;. </p>"))),
-                                                         numericInput("seed", "Random seed (positive integer)", value=sample(1:10000, 1), min = 1),
-                                                         conditionalPanel("input.use_hist",
-                                                                          selectInput("tau_dist", HTML("<p> Specify prior for &tau; (between-trial standard deviation). </p>"), 
-                                                                                      choices = c(`HalfNormal` = "HalfNormal", `TruncNormal` = "TruncNormal", 
-                                                                                                  `Uniform` = "Uniform", `Gamma` = "Gamma", `InvGamma` = "InvGamma", 
-                                                                                                  `LogNormal` = "LogNormal", `TruncCauchy` = "TruncCauchy", 
-                                                                                                  `Exponential` = "Exp", `Fixed`  ="Fixed")),
-                                                                          conditionalPanel("input.tau_dist == 'HalfNormal'", HTML("<p> &tau; ~ HalfNormal(&sigma;) </p>"), 
-                                                                                           numericInput("tau_arg1_HN", HTML("<p> &sigma; </p>"), value = 1, min = .Machine$double.xmin)),
-                                                                          conditionalPanel("input.tau_dist == 'TruncNormal'", HTML("<p> &tau; ~ TruncNormal(&mu;, &sigma;) </p>"), 
-                                                                                           numericInput("tau_arg1_TN", HTML("<p> &mu; </p>"), value = 0, min = .Machine$double.xmin), 
-                                                                                           numericInput("tau_arg2_TN", HTML("<p> &sigma; </p>"), value = 1, min = .Machine$double.xmin)),
-                                                                          conditionalPanel("input.tau_dist == 'Uniform'", HTML("<p> &tau; ~ Uniform(a, b) </p>"), 
-                                                                                           numericInput("tau_arg1_Uni", HTML("a"), value = 0), 
-                                                                                           numericInput("tau_arg2_Uni", HTML("b"), value = 1)),
-                                                                          conditionalPanel("input.tau_dist == 'Gamma'", HTML("<p> &tau; ~ Gamma(shape = &alpha;, rate = &beta;) </p>"), 
-                                                                                           numericInput("tau_arg1_G", HTML("<p> &alpha; </p>"), value = 0.1), 
-                                                                                           numericInput("tau_arg2_G", HTML("<p> &beta; </p>"), value = 0.1)),
-                                                                          conditionalPanel("input.tau_dist == 'InvGamma'", HTML("<p> &tau; ~ InverseGamma(shape = &alpha;, scale = &beta;) </p>"), 
-                                                                                           numericInput("tau_arg1_IG", HTML("<p> &alpha; </p>"), value = 0.001), 
-                                                                                           numericInput("tau_arg2_IG", HTML("<p> &beta; </p>"), value = 0.001)),
-                                                                          conditionalPanel("input.tau_dist == 'LogNormal'", HTML("<p> &tau; ~ LogNormal(&mu;, &sigma;) </p>"), 
-                                                                                           numericInput("tau_arg1_LN", HTML("<p> &mu; </p>"), value = 0), 
-                                                                                           numericInput("tau_arg2_LN", HTML("<p> &sigma; </p>"), value = 1, min = .Machine$double.xmin)),
-                                                                          conditionalPanel("input.tau_dist == 'TruncCauchy'", HTML("<p> &tau; ~ TruncCauchy(&mu;, &sigma;) </p>"), 
-                                                                                           numericInput("tau_arg1_TC", HTML("<p> &mu; </p>"), value = 0), 
-                                                                                           numericInput("tau_arg2_TC", HTML("<p> &sigma; </p>"), value = 1, min = .Machine$double.xmin)),
-                                                                          conditionalPanel("input.tau_dist == 'Exp'", HTML("<p> &tau; ~ Exp(rate = &lambda;) </p>"), 
-                                                                                           numericInput("tau_arg_exp", HTML("<p> &lambda; </p>"), value = 1)), 
-                                                                          conditionalPanel("input.tau_dist == 'Fixed'", HTML("<p> &tau; = &tau;<sub>0</sub> </p>"), 
-                                                                                           numericInput("tau_fixed", HTML("<p> &tau;<sub>0</sub> </p>"), value = 1)),
-                                                                          selectInput("beta_choice", HTML("<p> Specify prior for &beta; (common mean). </p>"), choices = c("Default", "Specify")),
-                                                                          conditionalPanel("input.beta_choice == 'Specify'", HTML("<p> &beta; ~ Normal(&mu;, &sigma;) </p>"),
-                                                                                           numericInput("beta_mu", HTML("<p> &mu; </p>"), value = 0), 
-                                                                                           numericInput("beta_sigma", HTML("<p> &sigma; </p>"), value = 100, min = .Machine$double.xmin)),
-                                                                          conditionalPanel("input.beta_choice == 'Default'", 
-                                                                                           conditionalPanel("input.endpt == 'Binary'", HTML("<p> Default prior is &beta; ~ N(0, 2) </p>")),
-                                                                                           conditionalPanel("input.endpt == 'Normal'", HTML("<p> Default prior is &beta; ~ N(0, 100 * sd(y))) </p>")),
-                                                                                           conditionalPanel("input.endpt == 'Poisson'", HTML("<p> Default prior is &beta; ~ N(0, sd(log(y + 0.5 + log(t*n))))" )))
-                                                                          
-                                                         )
-                                        )),
-                           mainPanel(
-                             conditionalPanel("input.use_hist",
-                                              actionButton("make.forest", tags$b("(4) Visualize meta-data and MAP prior.")), 
-                                              br(),
-                                              textOutput("samp_size_warn"),
-                                              br(),
-                                              plotOutput("forest"),
-                                              htmlOutput("plot_err"),
-                                              textOutput("unique_warn"),
-                                              tableOutput("MAP_summ"),
-                                              textOutput("ESS"))
-                           )
-                         )),
+                                        )
+                )),
+                mainPanel(
+                  conditionalPanel("input.use_hist",
+                                   actionButton("make.forest", tags$b("(4) Visualize meta-data and MAP prior.")), 
+                                   br(),
+                                   textOutput("samp_size_warn"),
+                                   br(),
+                                   plotOutput("forest"),
+                                   htmlOutput("plot_err"),
+                                   textOutput("unique_warn"),
+                                   tableOutput("MAP_summ"),
+                                   textOutput("ESS"), br(),
+                                   textOutput("ESS.rob"))
+                )
+                )),
                 
                 tabPanel("PoS calculation",
                          fluidRow(column(5, tags$b("(1) Enter interim data."), 
@@ -205,8 +206,8 @@ ui = navbarPage("",
                                                  conditionalPanel("input.samp == 'Two'", numericInput("qc2", HTML("<p> 2nd null value, &Delta;<sub>02</sub> </p>"), value = 0)),
                                                  numericInput("pc2", HTML("<p> Critical probability threshold, p<sub>crit2</sub> </p>"), value = 0.5, min = .Machine$double.xmin, max = 1 - .Machine$double.xmin)
                                 )
-                               
-                                ),
+                                
+                         ),
                          
                          column(3, actionButton("compute.pos", tags$b("(3) Compute PoS!")), br(),
                                 
@@ -221,7 +222,7 @@ ui = navbarPage("",
                 tabPanel("Help", uiOutput("link0"), br(), uiOutput("link"), br(), uiOutput("link2"), 
                          br(), uiOutput("link3"), br(), uiOutput("link4")),
                 tags$style(HTML("
-        input[type=number] {
+                                input[type=number] {
                                 -moz-appearance:textfield;
                                 }
                                 input[type=number]::{
@@ -233,7 +234,7 @@ ui = navbarPage("",
                                 margin: 0;
                                 }
                                 "))
-) # close NavBarPanel
+                ) # close NavBarPanel
 
 server = function(input, output, session) {
   
@@ -755,7 +756,7 @@ server = function(input, output, session) {
           if(!is.numeric(t.ctrlB) | t.ctrlB < 0){return("Trial duration must be a positive number.")}
           if(!is.numeric(y.ctrlB) | y.ctrlB < 0){return("Total count within control group must be a non-negative number.")}
         }  
-    }
+      }
       
     } 
     if(!is.numeric(n.new.target) | n.new.target%%1 != 0 | n.new.target <= 0 | n.new.target <= n.new){return("Number of target patients must be a positive integer greater than the interim sample size.")}
@@ -817,33 +818,33 @@ server = function(input, output, session) {
     if(!is.numeric(input$qc2)) {return("2nd null value must be a number.")}
     if(input$endpt == "Binary" & input$samp == "One" & (input$qc2 < 0 | input$qc2 > 1)) {return(HTML("<p> p<sub>02</sub> must be between 0 and 1. </p>"))}
     if(input$endpt == "Binary" & input$samp == "Two" & (input$qc2 < -1 | input$qc2 > 1)) {return(HTML("<p> &Delta;<sub>02</sub> must be between 0 and 1. </p>"))}
-
+    
     # Error check co-data case.
     if(input$parallel) {
-        if(!is.numeric(n.newB) | !n.newB%%1 == 0 | n.newB < 1){return("Sample sizes must be a positive integer.")}
+      if(!is.numeric(n.newB) | !n.newB%%1 == 0 | n.newB < 1){return("Sample sizes must be a positive integer.")}
+      if(input$endpt == "Binary") {
+        if(!is.numeric(r.newB) |  !r.newB%%1 == 0 | r.newB < 0 | r.newB > n.newB){return("Number of events within treatment group must be a non-negative integer smaller than the sample size.")}
+      }
+      if(input$endpt == "Normal") {
+        if(!is.numeric(m.newB)) {return("Sample mean within treatment group must be a number.")}
+      } 
+      if(input$endpt == "Poisson") {
+        if(!is.numeric(y.newB) | y.newB < 0){return("Total count within treatment group must be a non-negative number.")}
+      } 
+      if(!is.numeric(n.new.targetB) | n.new.targetB%%1 != 0 | n.new.targetB <= 0 | n.new.targetB <= n.newB){return("Number of target patients must be a positive integer greater than the interim sample size.")}
+      if(input$samp == "Two") {
+        if(!is.numeric(n.ctrlB) | !n.ctrlB%%1 == 0 | n.ctrlB < 1){return("Sample sizes must be a positive integer.")}
         if(input$endpt == "Binary") {
-          if(!is.numeric(r.newB) |  !r.newB%%1 == 0 | r.newB < 0 | r.newB > n.newB){return("Number of events within treatment group must be a non-negative integer smaller than the sample size.")}
+          if(!is.numeric(r.ctrlB) |  !r.ctrlB%%1 == 0 | r.ctrlB < 0 | r.ctrlB > n.ctrlB){return("Number of events within control group must be a non-negative integer smaller than the sample size.")}
         }
         if(input$endpt == "Normal") {
-          if(!is.numeric(m.newB)) {return("Sample mean within treatment group must be a number.")}
+          if(!is.numeric(m.ctrlB)) {return("Sample mean within control group must be a number.")}
         } 
         if(input$endpt == "Poisson") {
-          if(!is.numeric(y.newB) | y.newB < 0){return("Total count within treatment group must be a non-negative number.")}
+          if(!is.numeric(y.ctrlB) | y.ctrlB < 0){return("Total count within control group must be a non-negative number.")}
         } 
-        if(!is.numeric(n.new.targetB) | n.new.targetB%%1 != 0 | n.new.targetB <= 0 | n.new.targetB <= n.newB){return("Number of target patients must be a positive integer greater than the interim sample size.")}
-        if(input$samp == "Two") {
-          if(!is.numeric(n.ctrlB) | !n.ctrlB%%1 == 0 | n.ctrlB < 1){return("Sample sizes must be a positive integer.")}
-          if(input$endpt == "Binary") {
-            if(!is.numeric(r.ctrlB) |  !r.ctrlB%%1 == 0 | r.ctrlB < 0 | r.ctrlB > n.ctrlB){return("Number of events within control group must be a non-negative integer smaller than the sample size.")}
-          }
-          if(input$endpt == "Normal") {
-            if(!is.numeric(m.ctrlB)) {return("Sample mean within control group must be a number.")}
-          } 
-          if(input$endpt == "Poisson") {
-            if(!is.numeric(y.ctrlB) | y.ctrlB < 0){return("Total count within control group must be a non-negative number.")}
-          } 
-          if(!is.numeric(n.ctrl.targetB) | n.ctrl.targetB%%1 != 0 | n.ctrl.targetB <= 0 | n.ctrl.targetB <= n.ctrlB){return("Number of target patients must be a positive integer greater than the interim sample size.")}
-        }
+        if(!is.numeric(n.ctrl.targetB) | n.ctrl.targetB%%1 != 0 | n.ctrl.targetB <= 0 | n.ctrl.targetB <= n.ctrlB){return("Number of target patients must be a positive integer greater than the interim sample size.")}
+      }
     }
     
     return(NULL)
@@ -945,7 +946,6 @@ server = function(input, output, session) {
   }
   
   get.gMAP.mem = memoise(get.gMAP)
-  
   robustify.mem = memoise(robustify)
   
   # Function to make forest plot.
@@ -965,11 +965,11 @@ server = function(input, output, session) {
       incProgress(amount = 0.25)
       setProgress(message = "Computing parametric approximation...")
       base.MAP = automixfit(base.MAP.mc) 
-      
+      MAP.robust = robustify.mem(base.MAP, weight = input$wt)
       ESS = ess(base.MAP, "elir")
+      ESS.rob = ess(MAP.robust, "elir")
     }) 
-    
-    return(list(base.MAP.mc = base.MAP.mc, MAP_summ = MAP_summ, ESS = ESS)) 
+    return(list(base.MAP.mc = base.MAP.mc, MAP_summ = MAP_summ, ESS = ESS, ESS.rob = ESS.rob)) 
   } # close makeForest() function
   
   # Call make forest function triggered by action button
@@ -989,6 +989,10 @@ server = function(input, output, session) {
                                     rownames = TRUE, digits = 3)
       output$ESS = renderText({
         paste0("The effective sample size of the MAP prior is ", round(func.output$ESS), ".")
+      })
+      
+      output$ESS.rob = renderText({
+        paste0("The effective sample size of the MAP prior with robustification is ", round(func.output$ESS.rob), ".")
       })
     }
   }, ignoreInit = TRUE)
@@ -1346,46 +1350,46 @@ server = function(input, output, session) {
       }
       
       if(samp == "One") {
-          new.data = which_val2()$mat
-          n.newB = new.data[2,2]
-          n.new.targetB = new.data[2,4]
-          if(input$endpt == "Binary") r.newB = new.data[2,3]
-          if(input$endpt == "Normal") m.newB = new.data[2,3]
-          if(input$endpt == "Poisson") {
-            y.newB = new.data[2,3]; t.newB = new.data[2,5]
-          }
-      } else{
-          new.data = which_val4()$mat
-          n.ctrl = new.data[2,2]
-          n.newB = new.data[3,2]
-          n.ctrlB = new.data[4,2]
-          n.ctrl.target = new.data[2,4]
-          n.new.targetB = new.data[3,4]
-          n.ctrl.targetB = new.data[4,4]
-          if(input$endpt == "Binary") {
-            r.ctrl = new.data[2,3]
-            r.newB = new.data[3,3]
-            r.ctrlB = new.data[4,3]
-          } else if(input$endpt == "Normal") {
-            m.ctrl = new.data[2,3]
-            m.newB = new.data[3,3]
-            m.ctrlB = new.data[4,3]
-          } else{
-            y.ctrl = new.data[2,3]
-            y.newB = new.data[3,3]
-            y.ctrlB = new.data[4,3]
-            n.new.targetB = new.data[3,4];
-            t.newB = new.data[3,5]
-          }
-        }
-        
-        n.new = new.data[1,2]
-        n.new.target = new.data[1,4]
-        if(input$endpt == "Binary") r.new = new.data[1,3]
-        if(input$endpt == "Normal") m.new = new.data[1,3]
+        new.data = which_val2()$mat
+        n.newB = new.data[2,2]
+        n.new.targetB = new.data[2,4]
+        if(input$endpt == "Binary") r.newB = new.data[2,3]
+        if(input$endpt == "Normal") m.newB = new.data[2,3]
         if(input$endpt == "Poisson") {
-          y.new = new.data[1,3]; t.new = new.data[1,5]
+          y.newB = new.data[2,3]; t.newB = new.data[2,5]
         }
+      } else{
+        new.data = which_val4()$mat
+        n.ctrl = new.data[2,2]
+        n.newB = new.data[3,2]
+        n.ctrlB = new.data[4,2]
+        n.ctrl.target = new.data[2,4]
+        n.new.targetB = new.data[3,4]
+        n.ctrl.targetB = new.data[4,4]
+        if(input$endpt == "Binary") {
+          r.ctrl = new.data[2,3]
+          r.newB = new.data[3,3]
+          r.ctrlB = new.data[4,3]
+        } else if(input$endpt == "Normal") {
+          m.ctrl = new.data[2,3]
+          m.newB = new.data[3,3]
+          m.ctrlB = new.data[4,3]
+        } else{
+          y.ctrl = new.data[2,3]
+          y.newB = new.data[3,3]
+          y.ctrlB = new.data[4,3]
+          n.new.targetB = new.data[3,4];
+          t.newB = new.data[3,5]
+        }
+      }
+      
+      n.new = new.data[1,2]
+      n.new.target = new.data[1,4]
+      if(input$endpt == "Binary") r.new = new.data[1,3]
+      if(input$endpt == "Normal") m.new = new.data[1,3]
+      if(input$endpt == "Poisson") {
+        y.new = new.data[1,3]; t.new = new.data[1,5]
+      }
       
       
       # Calculate PoS stuff here
@@ -1665,7 +1669,7 @@ server = function(input, output, session) {
             
             newMAP.A = automixfit(interim.MAP.post[,nrow(co.data2)-2], type = "gamma")
             newMAP.B = automixfit(interim.MAP.post[,nrow(co.data2)], type = "gamma")
-          
+            
             # Update control priors
             likelihood(newMAP.A) = likelihood(newMAP.B) = "poisson"
             
@@ -1687,7 +1691,7 @@ server = function(input, output, session) {
           interim.PoS.B = pos2S(interimB.allcombined, interim.B, n.ctrl.targetB - n.ctrlB, n.new.targetB - n.newB, decision = decision)
           PoS.B = interim.PoS.B(interimB.allcombined, interim.B)
           
-      
+          
           # Probability both trials successful
           interim.oc.A = oc2S(interimA.allcombined, interim, n.ctrl.target - n.ctrl, n.new.target - n.new, decision = decision)
           interim.oc.B = oc2S(interimB.allcombined, interim.B, n.ctrl.targetB - n.ctrlB, n.new.targetB - n.newB, decision = decision)
@@ -1754,6 +1758,3 @@ server = function(input, output, session) {
 } # close server() function
 
 shinyApp(ui, server)
-
-
-
