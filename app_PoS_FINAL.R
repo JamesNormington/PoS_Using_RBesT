@@ -302,7 +302,8 @@ server = function(input, output, session) {
     } else{
       inFile = input$file1.pois
     }
-    if (is.null(inFile)) return(NULL)
+    if(is.null(inFile)) return(NULL)
+    if(file_ext(inFile$datapath) != "csv") return("File upload must be .csv extension!")
     dat = read.csv(inFile$datapath, header = input$header)
     dat 
   })
@@ -580,6 +581,7 @@ server = function(input, output, session) {
       co.data = which_val()$mat
     } else{
       co.data = meta.data()
+      if(class(co.data) == "character") return(co.data)
     }
     
     co.data[,2] = as.numeric(co.data[,2])
